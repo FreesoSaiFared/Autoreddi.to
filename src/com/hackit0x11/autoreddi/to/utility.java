@@ -1,187 +1,134 @@
-package com.hackit0x11.autoreddi.to;
+package com.hackit0x11.autoreddi.to
 
-import android.app.*;
-import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.media.MediaPlayer;
-import android.net.Uri;
-import android.support.v4.app.NotificationCompat;
-import android.util.Log;
-import android.widget.Button;
-import android.widget.TextView;
-import android.view.View;
-import android.content.Context;
-import android.text.Html;
-import android.widget.Toast;
-import android.os.CountDownTimer;
-import android.view.animation.Animation;
-import android.view.animation.AlphaAnimation;
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.DefaultHttpClient;
+import android.app.Activity
+import android.content.*
+import android.os.Bundle
+import android.os.Handler
+import android.widget.ProgressBar
+import android.util.Log
 
-public class utility{
-    private static MediaPlayer rickrollizer = null;
-    private static boolean fisting = false;
+/**
+ * SplashScreen activity: shows a splash, checks remote status, and launches main activity.
+ * 
+ * Update the commented sections [CHANGE HERE] if you adjust resources, logic, or actions.
+ */
+class SplashScreen : Activity() {
 
+    // Randomized splash time between 2 and 5 seconds. [CHANGE HERE] to adjust splash duration logic.
+    private var splashTime: Int = (2_000..5_000).random()
 
-    public synchronized static void play(Context ctx, int resid) {
-        if (rickrollizer == null) {  rickrollizer = new MediaPlayer();  }
+    // URLs loaded from resources. [CHANGE HERE] if resource names change.
+    var countUrl: String = ""
+    var urlABurla: String = ""
 
-        if (!fisting) {
+    // ProgressBar shown during splash. [CHANGE HERE] if you rename/remove the ProgressBar in layout.
+    private lateinit var progressBar: ProgressBar
+
+    // SharedPreferences for persistent state. [CHANGE HERE] if you change storage keys or logic.
+    private lateinit var prefs: SharedPreferences
+    private lateinit var prefsEditor: SharedPreferences.Editor
+
+    // Action string for broadcast close intent. [CHANGE HERE] if you want to change the broadcast action.
+    companion object {
+        const val ACTION_CLOSE = "canigonfi.ACTION_CLOSE"
+    }
+
+    // BroadcastReceiver to listen for finish signals. [CHANGE HERE] if broadcast or animation changes.
+    private var firstReceiver: BroadcastReceiver? = null
+
+    // Helper: checks if this is the first app run. [CHANGE HERE] if you change the first-run logic.
+    private fun isFirstRun(): Boolean = prefs.getBoolean("first_run", true)
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // [CHANGE HERE] if you update the splash layout resource.
+        setContentView(R.layout.splashscreen)
+
+        // Load URLs from resources. [CHANGE HERE] if resource names change.
+        countUrl = resources.getString(R.string.contami)
+        urlABurla = resources.getString(R.string.burlami)
+
+        // Setup SharedPreferences. [CHANGE HERE] if you change storage name or keys.
+        prefs = getSharedPreferences("STORAGE", Context.MODE_PRIVATE)
+        prefsEditor = prefs.edit()
+
+        // Setup ProgressBar. [CHANGE HERE] if ProgressBar id changes in layout.
+        progressBar = findViewById(R.id.progressBar)
+        progressBar.isIndeterminate = true
+
+        // Register receiver for closing the splash. [CHANGE HERE] if broadcast action or transition changes.
+        val filter = IntentFilter(ACTION_CLOSE)
+        firstReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                Log.e("FirstReceiver", "FirstReceiver triggered")
+                if (intent.action == ACTION_CLOSE) {
+                    finish()
+                    overridePendingTransition(R.anim.fade_in, R.anim.fade_out)
+                }
+            }
+        }
+        registerReceiver(firstReceiver, filter)
+
+        // Background thread: check remote "burla" status.
+        Thread {
             try {
-                Uri u = Uri.parse("android.resource://" + ctx.getPackageName() + "/" + resid);
-                if (u == null) Log.e("peso", "pddio");
-                rickrollizer.setDataSource(ctx, u);
-                rickrollizer.prepare();
-            } catch (Exception stocazzo) {}
-            fisting = true;
-            rickrollizer.start();
-            rickrollizer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-                @Override
-                public void onCompletion(MediaPlayer mp) {
-                    fisting = false;
-                    mp.reset();
-                    try {
-                        mp.prepare();
-                    } catch (Exception e) {
-                    }
-                    mp.start();
-                    fisting = true;
-
+                val response = utility.getHttpResponse(urlABurla)
+                Log.w("8=========>", response ?: "No")
+                if (response != null) {
+                    // "Burla mode" ON
+                    prefsEditor.putBoolean("burla", true).commit()
+                    prefsEditor.putBoolean("pissing", true).commit()
+                    utility.dodaburla(this@SplashScreen, this@SplashScreen)
+                    splashTime = 0 // Skip splash if in "burla" mode
+                } else {
+                    prefsEditor.putBoolean("burla", false).commit()
                 }
-            });
+            } catch (_: Exception) { /* Ignore */ }
+        }.start()
+
+        // First run: show info dialog and mark as no longer first run.
+        if (isFirstRun()) {
+            // [CHANGE HERE] if you update the about dialog layout or string resources.
+            utility.setDialog(
+                this@SplashScreen,
+                R.layout.alpha,
+                R.string.AboutTitle,
+                R.id.aboutexit,
+                R.string.AboutText
+            )
+            // Track/notify first launch remotely.
+            Thread { utility.getHttpResponse(countUrl) }.start()
+            prefsEditor.putBoolean("first_run", false).commit()
         }
-    }
 
-    public synchronized static void stop() {
-        fisting = false;
-        if (rickrollizer != null) {
-            rickrollizer.release();
-            rickrollizer = null;
+        // If not in "burla" mode, start the service. [CHANGE HERE] if service name/logic changes.
+        if (!prefs.getBoolean("burla", false)) {
+            val serviceIntent = Intent(this, Servodeiservideiservi::class.java)
+            startService(serviceIntent)
         }
+
+        // After splashTime ms, launch the main activity.
+        Handler().postDelayed({
+            val intent = Intent(this, AutoAct::class.java)
+            startActivity(intent)
+            // Uncomment below to auto-finish splash and animate.
+            // finish()
+            // overridePendingTransition(R.anim.fade_in, R.anim.fade_out)
+        }, splashTime)
+
+        // Dummy handler to keep splash alive for splashTime ms.
+        Handler().postDelayed({ }, splashTime)
     }
 
-    public static void createNotification(Context ctx) {
-        Bitmap largeIcon = BitmapFactory.decodeResource(ctx.getResources(), R.drawable.ic_rick_astley);
-        Intent bozzo =new Intent(ctx.getApplicationContext(),QueRicko.class);
-        bozzo.putExtra("NOTIFICATION_DATA", "CACCA");
-        PendingIntent strabozzo = PendingIntent.getActivity(ctx.getApplicationContext(), 0, bozzo, 0);
-
-        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(
-                ctx.getApplicationContext())
-                .setContentTitle("YOU JUST GOT RICK ROLL'D")
-                .setContentText("click to stop Never Gonna Give You Up")
-                .setSmallIcon(R.drawable.ic_rick_astley)
-                .setLargeIcon(largeIcon)
-                .setAutoCancel(true)
-                .setDefaults(Notification.DEFAULT_LIGHTS| Notification.DEFAULT_VIBRATE| Notification.DEFAULT_SOUND)
-                .setContentIntent(strabozzo);
-        NotificationManager notificationManager =(NotificationManager) ctx.getApplicationContext().getSystemService(Context.NOTIFICATION_SERVICE);
-        // hide the notification after its selected
-        Notification notification=notificationBuilder.build();
-        notificationManager.notify(0, notification);
-
+    // Handle back button: finish splash. [CHANGE HERE] to adjust back behavior.
+    override fun onBackPressed() {
+        finish()
+        super.onBackPressed()
     }
 
-
-    public static void dodaburla(Context ctx, Activity a){
-        play(ctx, R.raw.rick);
-        Intent goatse = new Intent(Intent.ACTION_VIEW, Uri.parse("http://goatse.ru/"));
-        a.startActivity(goatse);
-        createNotification(ctx);
+    // Unregister receiver on stop to prevent leaks. [CHANGE HERE] if receiver logic changes.
+    override fun onStop() {
+        firstReceiver?.let { unregisterReceiver(it) }
+        super.onStop()
     }
-
-
-    public static void setDialog(Context c, int layout, int title, int b, int text){
-        final Dialog dialog = new Dialog(c);
-        dialog.setContentView(layout);
-        dialog.setTitle(c.getResources().getString(title));
-        dialog.setCancelable(true);
-
-        TextView te=(TextView) dialog.findViewById(c.getResources().getIdentifier("testo","id", c.getPackageName()));
-        te.setText(Html.fromHtml(c.getResources().getString(text)));
-
-        Button button = (Button) dialog.findViewById(b);
-        button.setOnClickListener(new View.OnClickListener(){
-            @Override
-            public void onClick(View v){dialog.dismiss();}
-        });
-        dialog.show();
-    }
-
-    static public void showDialogFor(Toast to, int seconds){
-        final Toast t=to;
-        new CountDownTimer(seconds*1000, 1000)
-        {
-            public void onTick(long millisUntilFinished) {t.show();}
-            public void onFinish() {t.show();}
-        }.start();
-    }
-
-    static public Animation blinkaview(View vb, int seconds){
-        Animation anima = new AlphaAnimation(0.3f, 1.0f);
-        anima.setDuration(seconds);
-        anima.setRepeatMode(Animation.REVERSE);
-        anima.setRepeatCount(Animation.INFINITE);
-        vb.startAnimation(anima);
-        return anima;
-    }
-
-    /* https://www.youtube.com/watch?v=suQBZzcO0TQ */
-    public static String getHttpResponse(String uri) {
-        Thread thread = new Thread(new Runnable(){
-            @Override
-            public void run() {
-                try {
-                    //Your code goes here
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        });
-
-        thread.start();
-
-
-
-        StringBuilder response = new StringBuilder();
-        try {
-            HttpGet get = new HttpGet(uri);
-            DefaultHttpClient httpClient = new DefaultHttpClient();
-            HttpResponse httpResponse = httpClient.execute(get);
-            if (httpResponse.getStatusLine().getStatusCode() == 200) {
-                HttpEntity messageEntity = httpResponse.getEntity();
-                InputStream is = messageEntity.getContent();
-                BufferedReader br = new BufferedReader(new InputStreamReader(is));
-                String line;
-                while ((line = br.readLine()) != null) {
-                    response.append(line);
-                }
-            }
-            else{
-                return null;}
-        } catch (Exception e) {
-            return null;
-        }
-        return response.toString();
-    }
-
-
-
-
-
-
-
-
 }
-
-
-
-
-
